@@ -20,7 +20,7 @@ if "meta_desejada" not in st.session_state: st.session_state.meta_desejada = 7.0
 if "trilha_escolhida" not in st.session_state: st.session_state.trilha_escolhida = "Trilha das Palavras (Português/Redação)"
 if "tarefas" not in st.session_state: st.session_state.tarefas = []
 
-CHAVE_API_GEMINI = "AQ.Ab8RN6KGGXIKQYekulOPHMaa7mTaSLMonbB6FFkY7wcyhHG-2Q"
+CHAVE_API_GEMINI = st.secrets["CHAVE_API_GEMINI"]
 
 # ==========================================
 # 2. MENU LATERAL DE NAVEGAÇÃO
