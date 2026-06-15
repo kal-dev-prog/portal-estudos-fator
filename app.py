@@ -1,4 +1,3 @@
-import streamlit as str
 import streamlit as st
 import pandas as pd
 import time
@@ -10,7 +9,7 @@ from google.genai import types
 # ==========================================
 st.set_page_config(page_title="Portal de Estudos Fator", page_icon="🎓", layout="wide")
 
-# Inicializar o estado da sessão para manter os dados salvos entre as páginas
+# Inicializar o estado da sessão para manter as notas salvas entre as páginas
 if "medias_finais" not in st.session_state:
     st.session_state.medias_finais = {
         "Língua Portuguesa": 0.0, "Matemática": 0.0, "Biologia": 0.0, 
@@ -21,7 +20,7 @@ if "meta_desejada" not in st.session_state: st.session_state.meta_desejada = 7.0
 if "trilha_escolhida" not in st.session_state: st.session_state.trilha_escolhida = "Trilha das Palavras (Português/Redação)"
 if "tarefas" not in st.session_state: st.session_state.tarefas = []
 
-# Inicializar estados de memória para a IA não apagar as respostas ao clicar noutros botões
+# Inicializar estados de memória para as respostas da IA
 if "resposta_cronograma" not in st.session_state: st.session_state.resposta_cronograma = None
 if "resposta_flashcards" not in st.session_state: st.session_state.resposta_flashcards = None
 if "resposta_quiz" not in st.session_state: st.session_state.resposta_quiz = None
@@ -57,16 +56,18 @@ with st.sidebar:
     )
 
 # ==========================================
-# FUNÇÕES AUXILIARES DE CÁLCULO
+# FUNÇÕES AUXILIARES DE CÁLCULO (COM MEMÓRIA DO TIMESTAMPS)
 # ==========================================
 def calcular_subdivisao_bloco_a(id_chave, nome_exibicao):
     st.write(f"**{nome_exibicao}**")
     c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: ava = st.number_input("AVA (Até 1.0)", min_value=0.0, max_value=1.0, value=0.0, step=0.1, key=f"{id_chave}_ava")
-    with c2: avt = st.number_input("AVT (Até 6.0)", min_value=0.0, max_value=6.0, value=0.0, step=0.1, key=f"{id_chave}_avt")
-    with c3: projeto = st.number_input("Projeto (Até 2.0)", min_value=0.0, max_value=2.0, value=0.0, step=0.1, key=f"{id_chave}_proj")
-    with c4: itinerario = st.number_input("Nota Itinerário (Até 1.0)", min_value=0.0, max_value=1.0, value=0.0, step=0.1, key=f"{id_chave}_itin")
-    with c5: bonus = st.number_input("Bónus Extra (Até 1.0)", min_value=0.0, max_value=1.0, value=0.0, step=0.1, key=f"{id_chave}_bonus")
+    
+    # Adicionado o st.session_state para puxar e salvar a nota em tempo real
+    with c1: ava = st.number_input("AVA (Até 1.0)", min_value=0.0, max_value=1.0, step=0.1, key=f"mem_{id_chave}_ava")
+    with c2: avt = st.number_input("AVT (Até 6.0)", min_value=0.0, max_value=6.0, step=0.1, key=f"mem_{id_chave}_avt")
+    with c3: projeto = st.number_input("Projeto (Até 2.0)", min_value=0.0, max_value=2.0, step=0.1, key=f"mem_{id_chave}_proj")
+    with c4: itinerario = st.number_input("Nota Itinerário (Até 1.0)", min_value=0.0, max_value=1.0, step=0.1, key=f"mem_{id_chave}_itin")
+    with c5: bonus = st.number_input("Bónus Extra (Até 1.0)", min_value=0.0, max_value=1.0, step=0.1, key=f"mem_{id_chave}_bonus")
     
     nota_parcial = ava + avt + projeto + itinerario + bonus
     if nota_parcial > 10.0: nota_parcial = 10.0
@@ -74,7 +75,7 @@ def calcular_subdivisao_bloco_a(id_chave, nome_exibicao):
     
     if nota_parcial < 7.0:
         st.caption(f"⚠️ *{nome_exibicao} abaixo de 7.0. AVR disponível.*")
-        avr = st.number_input("Nota da AVR (Até 10.0)", min_value=0.0, max_value=10.0, value=0.0, step=0.1, key=f"{id_chave}_avr")
+        avr = st.number_input("Nota da AVR (Até 10.0)", min_value=0.0, max_value=10.0, step=0.1, key=f"mem_{id_chave}_avr")
         if avr > 0:
             nova_avt = (avt + avr) / 2
             if nova_avt > 6.0: nova_avt = 6.0  
@@ -85,11 +86,12 @@ def calcular_subdivisao_bloco_a(id_chave, nome_exibicao):
 def calcular_nota_materia_regular(id_chave, nome_exibicao):
     st.write(f"**{nome_exibicao}**")
     c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: ava = st.number_input("AVA (Até 1.0)", min_value=0.0, max_value=1.0, value=0.0, step=0.1, key=f"{id_chave}_ava")
-    with c2: avt = st.number_input("AVT (Até 6.0)", min_value=0.0, max_value=6.0, value=0.0, step=0.1, key=f"{id_chave}_avt")
-    with c3: projeto = st.number_input("Projeto (Até 2.0)", min_value=0.0, max_value=2.0, value=0.0, step=0.1, key=f"{id_chave}_proj")
-    with c4: itinerario = st.number_input("Nota Itinerário (Até 1.0)", min_value=0.0, max_value=1.0, value=0.0, step=0.1, key=f"{id_chave}_itin")
-    with c5: bonus = st.number_input("Bónus Extra (Até 1.0)", min_value=0.0, max_value=1.0, value=0.0, step=0.1, key=f"{id_chave}_bonus")
+    
+    with c1: ava = st.number_input("AVA (Até 1.0)", min_value=0.0, max_value=1.0, step=0.1, key=f"mem_{id_chave}_ava")
+    with c2: avt = st.number_input("AVT (Até 6.0)", min_value=0.0, max_value=6.0, step=0.1, key=f"mem_{id_chave}_avt")
+    with c3: projeto = st.number_input("Projeto (Até 2.0)", min_value=0.0, max_value=2.0, step=0.1, key=f"mem_{id_chave}_proj")
+    with c4: itinerario = st.number_input("Nota Itinerário (Até 1.0)", min_value=0.0, max_value=1.0, step=0.1, key=f"mem_{id_chave}_itin")
+    with c5: bonus = st.number_input("Bónus Extra (Até 1.0)", min_value=0.0, max_value=1.0, step=0.1, key=f"mem_{id_chave}_bonus")
     
     nota_parcial = ava + avt + projeto + itinerario + bonus
     if nota_parcial > 10.0: nota_parcial = 10.0
@@ -97,7 +99,7 @@ def calcular_nota_materia_regular(id_chave, nome_exibicao):
     
     if nota_parcial < 7.0:
         st.caption(f"⚠️ *{nome_exibicao} abaixo de 7.0. AVR disponível.*")
-        avr = st.number_input("Nota da AVR (Até 10.0)", min_value=0.0, max_value=10.0, value=0.0, step=0.1, key=f"{id_chave}_avr")
+        avr = st.number_input("Nota da AVR (Até 10.0)", min_value=0.0, max_value=10.0, step=0.1, key=f"mem_{id_chave}_avr")
         if avr > 0:
             nova_avt = (avt + avr) / 2
             if nova_avt > 6.0: nova_avt = 6.0
@@ -156,7 +158,7 @@ if menu_opcao == "🧮 Simulador de Notas (Fator)":
             st.session_state.medias_finais[mat] = nota_mat
             st.caption(f"Nota Final Registada: **{nota_mat:.2f}**")
             
-    st.success("🔄 Notas atualizadas! Podes ver os novos gráficos no Painel Geral.")
+    st.success("🔄 Notas guardadas com sucesso! Podes navegar livremente pelas abas.")
 
 
 # --- MENU 2: PAINEL DE CONTROLO GERAL ---
@@ -187,21 +189,22 @@ elif menu_opcao == "🏠 Painel de Controlo Geral":
     criticas = [f"{m} ({n:.2f})" for m, n in st.session_state.medias_finais.items() if n < st.session_state.meta_desejada and n > 0]
     
     if not criticas or media_geral == 0:
-        st.success(f"🎉 Excelente! Estás a cumprir a tua meta de {st.session_state.meta_desejada} em todas as frentes lançadas.")
+        st.success(f"🎉 Excelente! Estás a cumprir a tua meta de {st.session_state.meta_desejada} em todas as frentes lançadas ou ainda não preencheste dados.")
     else:
         st.warning(f"⚠️ Atenção: Estás abaixo da tua meta em: {', '.join(criticas)}. Usa a aba do **Mentor Pedagógico IA** para te ajudar.")
 
 
-# --- MENU 3: MENTOR PEDAGÓGICO IA (ATUALIZADO!) ---
+# --- MENU 3: MENTOR PEDAGÓGICO IA ---
 elif menu_opcao == "🧠 Mentor Pedagógico IA":
     st.title("🧠 Mentor Pedagógico com Inteligência Artificial")
     st.markdown("Gera planos de estudo, flashcards e quizes dinâmicos focados nas tuas dificuldades.")
     st.markdown("---")
     
+    # Descobre quais matérias têm notas maiores que zero, porém abaixo da meta
     materias_criticas = [f"{m}: {n:.2f}" for m, n in st.session_state.medias_finais.items() if n < st.session_state.meta_desejada and n > 0]
     
     if not materias_criticas:
-        st.info("💡 Não tens matérias críticas abaixo da meta neste momento! Se quiseres testar os recursos da IA, experimenta aumentar temporariamente a tua 'Meta de Nota' no menu lateral.")
+        st.info("💡 Não tens matérias críticas abaixo da meta neste momento! Vai ao simulador, adiciona algumas notas baixas para simular o cenário e regressa aqui para ativar a IA.")
     else:
         st.warning(f"⚠️ Matérias detetadas com necessidade de suporte: {', '.join(materias_criticas)}")
         
